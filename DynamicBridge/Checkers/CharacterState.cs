@@ -8,6 +8,7 @@ namespace DynamicBridge.Core
 {
     public enum CharacterState
     {
+        Unconscious,
         Floating,
         Swimming,
         Diving,
@@ -17,5 +18,6 @@ namespace DynamicBridge.Core
         Wading_in_water,
         Watching_cutscene,
         In_combat,
+        RolePlaying
     }
 }
