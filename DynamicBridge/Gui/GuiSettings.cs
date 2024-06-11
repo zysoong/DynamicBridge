@@ -64,6 +64,8 @@ public static class GuiSettings
             ImGuiEx.HelpMarker($"Censored names will change upon pressing this button.");
 
             ImGuiEx.CheckboxInverted($"Split base classes and jobs", ref C.UnifyJobs);
+            
+            ImGui.Checkbox("Autofill empty preset name with first selected plugin's option name upon selecting it", ref C.AutofillFromGlam);
             ImGuiGroup.EndGroupBox();
         }
 
@@ -93,7 +95,7 @@ public static class GuiSettings
             //glam
 
             ImGui.Checkbox("Glamourer", ref C.EnableGlamourer);
-            DrawPluginCheck("Glamourer", "1.2.0.2");
+            DrawPluginCheck("Glamourer", "1.2.2.2");
             ImGuiEx.Spacing();
             ImGuiEx.TextV($"DynamicBridge behavior when no Glamourer rule is found:");
             ImGui.SameLine();
@@ -121,8 +123,6 @@ public static class GuiSettings
             ImGui.Checkbox("Revert character before restoring automation", ref C.RevertBeforeAutomationRestore);
             ImGuiEx.Spacing();
             ImGui.Checkbox("Revert character before applying rule", ref C.RevertGlamourerBeforeApply);
-            ImGuiEx.Spacing();
-            ImGui.Checkbox("Autofill preset name with Glamourer's preset name upon selecting it", ref C.AutofillFromGlam);
 
 
             ImGui.Separator();
@@ -141,7 +141,7 @@ public static class GuiSettings
 
             //penumbra
             ImGui.Checkbox("Penumbra", ref C.EnablePenumbra);
-            DrawPluginCheck("Penumbra", "1.0.0.4");
+            DrawPluginCheck("Penumbra", "1.0.1.0");
 
             //moodles
             ImGui.Checkbox("Moodles", ref C.EnableMoodles);

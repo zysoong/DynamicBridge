@@ -65,13 +65,20 @@ namespace DynamicBridge.Gui
                     try
                     {
                         var str = (EzConfig.DefaultSerializationFactory.Deserialize<Preset>(Paste()));
-                        if (Open != null && Profile.PresetsFolders.TryGetFirst(x => x.GUID == Open, out var open))
+                        if (str != null)
                         {
-                            open.Presets.Add(str);
+                            if (Open != null && Profile.PresetsFolders.TryGetFirst(x => x.GUID == Open, out var open))
+                            {
+                                open.Presets.Add(str);
+                            }
+                            else
+                            {
+                                Profile.Presets.Add(str);
+                            }
                         }
                         else
                         {
-                            Profile.Presets.Add(str);
+                            Notify.Error("Could not import from clipboard");
                         }
                     }
                     catch (Exception e)
@@ -619,7 +626,7 @@ namespace DynamicBridge.Gui
                                 if (preset.PenumbraType == SpecialPenumbraAssignment.Use_Named_Collection)
                                 {
                                     FiltersSelection();
-                                    var collections = P.PenumbraManager.GetCollections().Order();
+                                    var collections = P.PenumbraManager.GetCollectionNames().Order();
                                     var index = 0;
                                     List<(string[], Action)> items = [];
                                     foreach (var x in collections)
