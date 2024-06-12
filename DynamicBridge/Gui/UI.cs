@@ -41,7 +41,7 @@ public unsafe static class UI
             foreach (var x in Svc.Data.GetExcelSheet<Emote>()) ThreadLoadImageHandler.TryGetIconTextureWrap(x.Icon, false, out _);
         }
         PatreonBanner.DrawRight();
-        ImGuiEx.EzTabBar("TabsNR2", PatreonBanner.Text, RequestTab, ImGuiTabBarFlags.Reorderable, [
+        ImGuiEx.EzTabBar("TabsNR2", PatreonBanner.Text, RequestTab, [
             //("Settings", Settings, null, true),
             (C.ShowTutorial?"Tutorial":null, GuiTutorial.Draw, null, true),
             ("Dynamic Rules", GuiRules.Draw, Colors.TabGreen, true),
