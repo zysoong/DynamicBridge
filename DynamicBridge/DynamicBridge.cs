@@ -14,10 +14,12 @@ using ECommons.Configuration;
 using ECommons.Events;
 using ECommons.ExcelServices;
 using ECommons.EzEventManager;
+using ECommons.Funding;
 using ECommons.GameHelpers;
 using ECommons.SimpleGui;
+using ECommons.Singletons;
 using ECommons.Throttlers;
-using FFXIVClientStructs.FFXIV.Client.Game.Housing;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using System.IO;
@@ -54,10 +56,11 @@ public unsafe class DynamicBridge : IDalamudPlugin
     public IpcTester IpcTester;
     public HonorificManager HonorificManager;
 
-    public DynamicBridge(DalamudPluginInterface pi)
+    public DynamicBridge(IDalamudPluginInterface pi)
     {
         P = this;
         ECommonsMain.Init(pi, this, Module.DalamudReflector);
+        PatreonBanner.IsOfficialPlugin = Utils.IsDisguise;
         new TickScheduler(() =>
         {
             C = EzConfig.Init<Config>();
@@ -72,7 +75,7 @@ public unsafe class DynamicBridge : IDalamudPlugin
                         arch.CreateEntryFromFile(EzConfig.DefaultConfigurationFileName, EzConfig.DefaultSerializationFactory.DefaultConfigFileName);
                     }
                     C.LastVersion = ver;
-                    DuoLog.Information($"Because plugin version was changed, a backup of your current configuraton has been created.");
+                    DuoLog.Information(Lang.LogNoticeVersionChange);
                 }
                 catch(Exception e)
                 {
@@ -80,7 +83,7 @@ public unsafe class DynamicBridge : IDalamudPlugin
                 }
             }
             EzConfigGui.Init(UI.DrawMain);
-            EzCmd.Add("/db", OnCommand, "open the plugin settings\n/db apply - reapply rules immediately\n/db static <name> - mark preset as static\n/db dynamic - cancel static preset and use dynamic rules");
+            EzCmd.Add("/db", OnCommand, Lang.CommangHelp);
             AgentMapInst = AgentMap.Instance();
             WeatherManager = new();
             new EzFrameworkUpdate(OnUpdate);
@@ -100,6 +103,7 @@ public unsafe class DynamicBridge : IDalamudPlugin
             PenumbraManager = new();
             MoodlesManager = new();
             HonorificManager = new();
+            SingletonServiceManager.Initialize(typeof(S));
         });
     }
 
@@ -116,7 +120,7 @@ public unsafe class DynamicBridge : IDalamudPlugin
                 }
                 else
                 {
-                    ChatPrinter.Orange("[DynamicBridge] Glamourer automation is enabled but DynamicBridge is not configured to work together with it. This will cause issues. Either disable Glamourer automation or configure DynamicBridge accordingly (/db - settings).");
+                    ChatPrinter.Orange(Lang.ChatNoticeGlamourerWarning);
                 }
             }
         }
@@ -147,12 +151,12 @@ public unsafe class DynamicBridge : IDalamudPlugin
                 {
                     profile.GetPresetsUnion().Each(x => x.IsStatic = false);
                     p.IsStatic = true;
-                    Notify.Success($"{name} was made static.");
+                    Notify.Success(Lang.NotifyWasMadeStatic.Params(name));
                     P.ForceUpdate = true;
                 }
                 else
                 {
-                    Notify.Error($"Could not find preset {name}.");
+                    Notify.Error(Lang.NoticeNotFound.Params(name));
                 }
             });
         }
@@ -163,13 +167,13 @@ public unsafe class DynamicBridge : IDalamudPlugin
                 var profile = Utils.Profile();
                 if (profile != null)
                 {
-                    profile.Presets.Each(x => x.IsStatic = false);
-                    Notify.Success($"Using dynamic rules now.");
+                    profile.GetPresetsListUnion().Each(x => x.Each(z => z.IsStatic = false));
+                    Notify.Success(Lang.UsingDynamicRulesNow);
                     P.ForceUpdate = true;
                 }
                 else
                 {
-                    Notify.Error($"Character blacklisted or not logged in.");
+                    Notify.Error(Lang.NoticeCharacterBlacklistedOrNotLoggedIn);
                 }
             });
         }
@@ -255,8 +259,8 @@ public unsafe class DynamicBridge : IDalamudPlugin
                                 (!C.Cond_House || ((x.Houses.Count == 0 || x.Houses.Contains(HousingManager.Instance()->GetCurrentHouseId()))
                                 && (!C.AllowNegativeConditions || !x.Not.Houses.Contains(HousingManager.Instance()->GetCurrentHouseId()))))
                                 &&
-                                (!C.Cond_Emote || ((x.Emotes.Count == 0 || x.Emotes.Contains(Player.Character->EmoteController.EmoteId))
-                                && (!C.AllowNegativeConditions || !x.Not.Emotes.Contains(Player.Character->EmoteController.EmoteId))))
+                                (!C.Cond_Emote || ((x.Emotes.Count == 0 || x.Emotes.Contains(Utils.GetAdjustedEmote()))
+                                && (!C.AllowNegativeConditions || !x.Not.Emotes.Contains(Utils.GetAdjustedEmote()))))
                                 &&
                                 (!C.Cond_Job || ((x.Jobs.Count == 0 || x.Jobs.Contains(Player.Job.GetUpgradedJobIfNeeded()))
                                 && (!C.AllowNegativeConditions || !x.Not.Jobs.Contains(Player.Job.GetUpgradedJobIfNeeded()))))

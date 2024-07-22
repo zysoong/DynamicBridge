@@ -20,19 +20,19 @@ public unsafe static class UI
 
     public static Profile SelectedProfile = null;
     public static Profile Profile => SelectedProfile ?? Utils.GetProfileByCID(Player.CID);
-    public const string RandomNotice = "Will be randomly selected between:\n";
-    public const string AnyNotice = "Meeting any of the following conditions will result in rule being triggered:\n";
+    public static string RandomNotice = Lang.WillBeRandomlySelectedBetween;
+    public static string AnyNotice = Lang.MeetingAnyOfTheFollowingConditionsWillResultInRuleBeingTriggeredN;
     static string PSelFilter = "";
     public static string RequestTab = null;
 
     public static void DrawMain()
     {
         var resolution = "";
-        if (Player.CID == 0) resolution = "Not logged in";
-        else if (C.Blacklist.Contains(Player.CID)) resolution = "Character blacklisted";
-        else if (Utils.GetProfileByCID(Player.CID) == null) resolution = "No associated profile";
-        else resolution = $"Profile {Utils.GetProfileByCID(Player.CID).CensoredName}";
-        if (!C.Enable && Environment.TickCount64 % 2000 > 1000) resolution = "PLUGIN DISABLED BY SETTINGS";
+        if (Player.CID == 0) resolution = Lang.NotLoggedIn;
+        else if (C.Blacklist.Contains(Player.CID)) resolution = Lang.CharacterBlacklisted;
+        else if (Utils.GetProfileByCID(Player.CID) == null) resolution = Lang.NoAssociatedProfile;
+        else resolution = Lang.ProfileTitle.Params(Utils.GetProfileByCID(Player.CID).CensoredName);
+        if (!C.Enable && Environment.TickCount64 % 2000 > 1000) resolution = Lang.PLUGINDISABLEDBYSETTINGS;
         EzConfigGui.Window.WindowName = $"{DalamudReflector.GetPluginName()} v{P.GetType().Assembly.GetName().Version} [{resolution}]###{DalamudReflector.GetPluginName()}";
         if (ImGui.IsWindowAppearing())
         {
@@ -43,15 +43,15 @@ public unsafe static class UI
         PatreonBanner.DrawRight();
         ImGuiEx.EzTabBar("TabsNR2", PatreonBanner.Text, RequestTab, [
             //("Settings", Settings, null, true),
-            (C.ShowTutorial?"Tutorial":null, GuiTutorial.Draw, null, true),
-            ("Dynamic Rules", GuiRules.Draw, Colors.TabGreen, true),
-            ("Presets", GuiPresets.DrawUser, Colors.TabGreen, true),
-            ("Global Presets", GuiPresets.DrawGlobal, Colors.TabYellow, true),
-            ("Layered Designs", ComplexGlamourer.Draw, Colors.TabPurple, true),
-            ("House Registration", HouseReg.Draw, Colors.TabPurple, true),
-            ("Profiles", GuiProfiles.Draw, Colors.TabBlue, true),
-            ("Characters", GuiCharacters.Draw, Colors.TabBlue, true),
-            ("Settings", GuiSettings.Draw, null, true),
+            (C.ShowTutorial?Lang.TabTutorial:null, GuiTutorial.Draw, null, true),
+            (Lang.TabDynamicRules, GuiRules.Draw, Colors.TabGreen, true),
+            (Lang.TabPresets, GuiPresets.DrawUser, Colors.TabGreen, true),
+            (Lang.TabGlobalPresets, GuiPresets.DrawGlobal, Colors.TabYellow, true),
+            (Lang.LayeredDesigns, ComplexGlamourer.Draw, Colors.TabPurple, true),
+            (Lang.TabHouseRegistration, HouseReg.Draw, Colors.TabPurple, true),
+            (Lang.TabProfiles, GuiProfiles.Draw, Colors.TabBlue, true),
+            (Lang.TabCharacters, GuiCharacters.Draw, Colors.TabBlue, true),
+            (Lang.TabSettings, GuiSettings.Draw, null, true),
             InternalLog.ImGuiTab(),
             (C.Debug?"Debug":null, Debug.Draw, ImGuiColors.DalamudGrey3, true),
             ]);
@@ -71,19 +71,19 @@ public unsafe static class UI
             {
                 if (C.Blacklist.Contains(Player.CID))
                 {
-                    ImGuiEx.InputWithRightButtonsArea(() => Utils.BannerCombo("blisted", $"\"{Censor.Character(Player.NameWithWorld)}\" is blacklisted. Select another profile to edit it.", ProfileSelectable), () =>
+                    ImGuiEx.InputWithRightButtonsArea(() => Utils.BannerCombo("blisted", Lang.BlacklistedCharacter.Params(Censor.Character(Player.NameWithWorld)), ProfileSelectable), () =>
                     {
                         after?.Invoke();
                         if(ImGuiEx.IconButton(FontAwesomeIcon.ArrowCircleUp))
                         {
                             C.Blacklist.Remove(Player.CID);
                         }
-                        ImGuiEx.Tooltip("Unblacklist this character.");
+                        ImGuiEx.Tooltip(Lang.UnblacklistThisCharacter);
                     });
                 }
                 else if (Player.CID != 0)
                 {
-                    ImGuiEx.InputWithRightButtonsArea(() => Utils.BannerCombo("noprofile", $"\"{Censor.Character(Player.NameWithWorld)}\" has no associated profile. Select other profile to edit or associate profile in Characters tab.", ProfileSelectable), () =>
+                    ImGuiEx.InputWithRightButtonsArea(() => Utils.BannerCombo("noprofile", Lang.CharaNoAssociation.Params(Censor.Character(Player.NameWithWorld)), ProfileSelectable), () =>
                     {
                         after?.Invoke();
                         if (ImGuiEx.IconButton(FontAwesomeIcon.PlusCircle))
@@ -91,14 +91,14 @@ public unsafe static class UI
                             var profile = new Profile();
                             C.ProfilesL.Add(profile);
                             profile.Characters = [Player.CID];
-                            profile.Name = $"Autogenerated Profile for {Player.Name}";
+                            profile.Name = Lang.AutogeneratedProfileFor.Params(Player.Name);
                         }
-                        ImGuiEx.Tooltip($"Create new empty profile and assign it to current character");
+                        ImGuiEx.Tooltip(Lang.CreateNewEmptyProfileAndAssignItToCurrentCharacter);
                     });
                 }
                 else
                 {
-                    ImGuiEx.InputWithRightButtonsArea(() => Utils.BannerCombo("nlg", $"You are not logged in. Please select profile to edit.", ProfileSelectable), () =>
+                    ImGuiEx.InputWithRightButtonsArea(() => Utils.BannerCombo("nlg", Lang.YouAreNotLoggedInPleaseSelectProfileToEdit, ProfileSelectable), () =>
                     {
                         after?.Invoke();
                         ImGui.Dummy(Vector2.Zero);
@@ -118,7 +118,7 @@ public unsafe static class UI
             }
             else
             {
-                ImGuiEx.InputWithRightButtonsArea(() => Utils.BannerCombo("EditNotify", $"You are editing profile \"{SelectedProfile.CensoredName}\". " + (Player.Available?$"It is not used by \"{Censor.Character(Player.NameWithWorld)}\".":""), ProfileSelectable, EColor.YellowDark), () =>
+                ImGuiEx.InputWithRightButtonsArea(() => Utils.BannerCombo("EditNotify", Lang.YouAreEditingProfile.Params(SelectedProfile.CensoredName) + (Player.Available?Lang.ItIsNotUsedBy.Params(Censor.Character(Player.NameWithWorld)) :""), ProfileSelectable, EColor.YellowDark), () =>
                 {
                     after?.Invoke();
                     if (!C.Blacklist.Contains(Player.CID))
@@ -127,11 +127,11 @@ public unsafe static class UI
                         {
                             new TickScheduler(() => SelectedProfile.SetCharacter(Player.CID));
                         }
-                        ImGuiEx.Tooltip($"Assign profile {SelectedProfile?.CensoredName} to {Censor.Character(Player.NameWithWorld)}");
+                        ImGuiEx.Tooltip($"Assign profile $1 to $2".Params(SelectedProfile?.CensoredName, Censor.Character(Player.NameWithWorld)));
                     }
                     else
                     {
-                        ImGuiEx.HelpMarker("Your current character is blacklisted", null, FontAwesomeIcon.ExclamationTriangle.ToIconString());
+                        ImGuiEx.HelpMarker(Lang.YourCurrentCharacterIsBlacklisted, null, FontAwesomeIcon.ExclamationTriangle.ToIconString());
                     }
                 });
             }
@@ -139,26 +139,26 @@ public unsafe static class UI
 
         void UsedByCurrent()
         {
-            ImGuiEx.InputWithRightButtonsArea(() => Utils.BannerCombo("EditNotify", $"You are editing profile \"{currentCharaProfile.CensoredName}\" which is used by \"{Censor.Character(Player.NameWithWorld)}\".", ProfileSelectable, EColor.GreenDark), () =>
+            ImGuiEx.InputWithRightButtonsArea(() => Utils.BannerCombo("EditNotify", Lang.YouAreEditingProfile1WhichIsUsedBy2.Params(currentCharaProfile.CensoredName, Censor.Character(Player.NameWithWorld)), ProfileSelectable, EColor.GreenDark), () =>
             {
                 after?.Invoke();
                 if (ImGuiEx.IconButton(FontAwesomeIcon.Unlink, enabled:ImGuiEx.Ctrl))
                 {
                     new TickScheduler(() => currentCharaProfile.Characters.Remove(Player.CID));
                 }
-                ImGuiEx.Tooltip($"Hold CTRL key and click to unassign profile {currentCharaProfile?.CensoredName} from {Censor.Character(Player.NameWithWorld)}.");
+                ImGuiEx.Tooltip(Lang.HoldCTRLKeyAndClickToUnassignProfile1From2.Params(currentCharaProfile?.CensoredName, Censor.Character(Player.NameWithWorld)));
             });
         }
 
         void ProfileSelectable()
         {
-            if(ImGui.Selectable("- Current character -", SelectedProfile == null))
+            if(ImGui.Selectable(Lang.CurrentCharacterSelectable, SelectedProfile == null))
             {
                 SelectedProfile = null;
             }
             ImGui.Separator();
             ImGuiEx.SetNextItemWidthScaled(150f);
-            ImGui.InputTextWithHint($"##SearchCombo", "Filter...", ref PSelFilter, 50, Utils.CensorFlags);
+            ImGui.InputTextWithHint($"##SearchCombo", Lang.Filter, ref PSelFilter, 50, Utils.CensorFlags);
             foreach(var x in C.ProfilesL)
             {
                 if (PSelFilter.Length > 0 && !x.Name.Contains(PSelFilter, StringComparison.OrdinalIgnoreCase)) continue;
@@ -177,6 +177,6 @@ public unsafe static class UI
         {
             P.ForceUpdate = true;
         }
-        ImGuiEx.Tooltip("Force update your character, reapplying all rules and resets");
+        ImGuiEx.Tooltip(Lang.ForceUpdateYourCharacterReapplyingAllRulesAndResets);
     }
 }

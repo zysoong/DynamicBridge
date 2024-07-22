@@ -1,11 +1,10 @@
 ﻿using Dalamud.Memory;
 using DynamicBridge.Configuration;
-using DynamicBridge.IPC.Honorific;
 using ECommons.ExcelServices;
 using ECommons.GameFunctions;
 using ECommons.GameHelpers;
 using FFXIVClientStructs.FFXIV.Client.Game;
-using FFXIVClientStructs.FFXIV.Client.Game.Housing;
+
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using Lumina.Excel.GeneratedSheets;
 using System.Globalization;
@@ -21,6 +20,16 @@ namespace DynamicBridge
         public static ImGuiInputTextFlags CensorFlags => C.NoNames ? ImGuiInputTextFlags.Password : ImGuiInputTextFlags.None;
         public static Vector2 CellPadding => ImGui.GetStyle().CellPadding + new Vector2(0, 2);
         public const float IndentSpacing = 5f;
+
+        public static uint GetAdjustedEmote()
+        {
+            var em = Player.Character->EmoteController.EmoteId;
+            if (Data.EmoteGroups.TryGetFirst(x => x.Contains(em), out var array))
+            {
+                return array[0];
+            }
+            return em;
+        }
 
         public static string[] SplitDirectories(this string path)
         {
@@ -168,7 +177,7 @@ namespace DynamicBridge
         public static string GetCharaNameFromCID(ulong CID)
         {
             if(C.SeenCharacters.TryGetValue(CID, out var name)) return name;
-            return $"Unknown character {CID:X16}";
+            return Lang.UnknownCharacter.Params($"{CID:X16}");
         }
 
         public static void SetCharacter(this Profile profile, ulong player)
@@ -188,7 +197,7 @@ namespace DynamicBridge
             for (int i = 0; i < cont->Size; i++)
             {
                 var item = cont->GetInventorySlot(i);
-                ret.Add((uint)(item->ItemID + (item->Flags.HasFlag(InventoryItem.ItemFlags.HQ) ? 1000000 : 0)));
+                ret.Add((uint)(item->ItemId + (item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality) ? 1000000 : 0)));
             }
             return ret;
         }
@@ -334,10 +343,10 @@ namespace DynamicBridge
             FullList = list.Select(x => x.ToString()).Join("\n");
             if (notList.Length > 0)
             {
-                FullList += "\nMeeting any of these condition will make rule invalid:\n";
+                FullList += $"\n{Lang.MeetingAnyOfTheseConditionWillMakeRuleInvalid}\n";
                 FullList += notList.Select(x => x.ToString()).Join("\n");
             }
-            return $"{list.Length} | {notList.Length} selected";
+            return Lang.NotListSelected.Params(list.Length, notList.Length);
         }
 
         public static List<uint> GetArmor()
@@ -347,7 +356,7 @@ namespace DynamicBridge
             var ret = new List<uint>();
             for (int i = 0; i < cont->Size; i++)
             {
-                ret.Add(cont->GetInventorySlot(i)->ItemID);
+                ret.Add(cont->GetInventorySlot(i)->ItemId);
             }
             return ret;
         }
@@ -379,10 +388,10 @@ namespace DynamicBridge
             if (Player.Available)
             {
                 var list = new List<GearsetEntry>();
-                foreach (var x in RaptureGearsetModule.Instance()->EntriesSpan)
+                foreach (var x in RaptureGearsetModule.Instance()->Entries)
                 {
-                    if (*x.Name == 0) continue;
-                    list.Add(new(x.ID, MemoryHelper.ReadStringNullTerminated((nint)x.Name), x.ClassJob));
+                    if (x.Name[0] == 0) continue;
+                    list.Add(new(x.Id, GenericHelpers.Read(x.Name), x.ClassJob));
                 }
                 C.GearsetNameCacheCID[Player.CID] = list;
             }
@@ -399,7 +408,7 @@ namespace DynamicBridge
                 }
                 else
                 {
-                    yield return $"{gearsetIDs[i]} No name found";
+                    yield return Lang.GearsetFallbackName.Params(gearsetIDs[i]);
                 }
             }
         }
