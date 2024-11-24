@@ -1,22 +1,21 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+﻿using Dalamud.Plugin.Ipc.Exceptions;
 using DynamicBridge.Configuration;
+using ECommons.ChatMethods;
 using ECommons.EzIpcManager;
-using ECommons.GameHelpers;
-using Newtonsoft.Json;
-using System;
-using static System.Windows.Forms.AxHost;
+using FFXIVClientStructs.FFXIV.Client.Game.Control;
+using System.Collections.Generic;
 
 namespace DynamicBridge.IPC.Customize;
 public class CustomizePlusManager
 {
     public bool WasSet = false;
-    public Guid SavedProfileID = Guid.Empty;
+    public List<Guid> SavedProfileID = null;
     public Guid LastEnabledProfileID = Guid.Empty;
     public CustomizePlusReflector Reflector;
 
-    [EzIPC("Profile.GetList")] Func<IList<CustomizePlusProfile>> GetProfileList;
-    [EzIPC("Profile.EnableByUniqueId")] Func<Guid, int> EnableProfileByUniqueId;
-    [EzIPC("Profile.DisableByUniqueId")] Func<Guid, int> DisableProfileByUniqueId;
+    [EzIPC("Profile.GetList")] private Func<IList<IPCProfileDataTuple>> GetProfileList;
+    [EzIPC("Profile.EnableByUniqueId")] private Func<Guid, int> EnableProfileByUniqueId;
+    [EzIPC("Profile.DisableByUniqueId")] private Func<Guid, int> DisableProfileByUniqueId;
 
     public CustomizePlusManager()
     {
@@ -24,7 +23,7 @@ public class CustomizePlusManager
         EzIPC.Init(this, "CustomizePlus", SafeWrapper.AnyException);
     }
 
-    List<PathInfo> PathInfos = null;
+    private List<PathInfo> PathInfos = null;
     public List<PathInfo> GetCombinedPathes()
     {
         PathInfos ??= Utils.BuildPathes(GetRawPathes());
@@ -36,29 +35,30 @@ public class CustomizePlusManager
         var ret = new List<string>();
         try
         {
-            foreach (var x in GetProfiles())
+            foreach(var x in GetProfiles())
             {
                 var path = x.VirtualPath;
-                if (path != null)
+                if(path != null)
                 {
                     ret.Add(path);
                 }
             }
         }
-        catch (Exception e)
+        catch(Exception e)
         {
             e.LogInternal();
         }
         return ret;
     }
 
-    IList<CustomizePlusProfile> Cache = null;
-    public IEnumerable<CustomizePlusProfile> GetProfiles(IEnumerable<string> chara = null)
+    private IList<IPCProfileDataTuple> Cache = null;
+    public IEnumerable<IPCProfileDataTuple> GetProfiles(IEnumerable<string> chara = null)
     {
         Cache ??= GetProfileList();
+        var charaSenders = chara?.Select(x => Sender.TryParse(x, out var s) ? s : default);
         foreach(var x in (Cache ?? []))
         {
-            if (chara == null || chara.Contains(x.CharacterName)) yield return x;
+            if(charaSenders == null || charaSenders.Any(c => x.Characters.Any(p => p.Name == c.Name && p.WorldId.ToUInt().EqualsAny(c.HomeWorld, ushort.MaxValue)))) yield return x;
         }
     }
 
@@ -72,32 +72,42 @@ public class CustomizePlusManager
     {
         try
         {
-            var charaProfiles = GetProfiles().Where(x => x.CharacterName == charName).ToArray();
-            if (!WasSet)
+            //PluginLog.Information($"Try parse: {charName}");
+            if(Sender.TryParse(charName, out var chara))
             {
-                if (charaProfiles.TryGetFirst(x => x.IsEnabled, out var enabledProfile))
+                var charaProfiles = GetProfiles().Where(x => x.Characters.Any(c => c.Name == chara.Name && c.WorldId.ToUInt().EqualsAny(ushort.MaxValue, chara.HomeWorld))).ToArray();
+                //PluginLog.Information($"CharaProfiles: {charaProfiles}");
+                if(!WasSet)
                 {
-                    SavedProfileID = enabledProfile.ID;
+                    var enabled = charaProfiles.Where(x => x.IsEnabled);
+                    if(enabled.Any())
+                    {
+                        SavedProfileID = enabled.Select(x => x.UniqueId).ToList();
+                    }
+                    else
+                    {
+                        SavedProfileID = null;
+                    }
+                }
+                if(Guid.TryParse(profileGuidStr, out var guid))
+                {
+                    if(charaProfiles.TryGetFirst(x => x.UniqueId == guid, out var profile))
+                    {
+                        foreach(var x in charaProfiles)
+                        {
+                            DisableProfileByUniqueId(x.UniqueId);
+                        }
+                        EnableProfileByUniqueId(profile.UniqueId);
+                        LastEnabledProfileID = profile.UniqueId;
+                    }
                 }
                 else
                 {
-                    SavedProfileID = Guid.Empty;
+                    PluginLog.Error($"Could not parse Customize+ profile: {profileGuidStr}. Is customize+ loaded?");
                 }
-            }
-            if (Guid.TryParse(profileGuidStr, out var guid))
-            {
-                if (charaProfiles.TryGetFirst(x => x.ID == guid, out var profile))
-                {
-                    EnableProfileByUniqueId(profile.ID);
-                    LastEnabledProfileID = profile.ID;
-                }
-            }
-            else
-            {
-                PluginLog.Error($"Could not parse Customize+ profile: {profileGuidStr}. Is customize+ loaded?");
             }
         }
-        catch (Exception e)
+        catch(Exception e)
         {
             e.Log();
         }
@@ -106,24 +116,21 @@ public class CustomizePlusManager
 
     public void RestoreState()
     {
-        if (WasSet)
+        if(WasSet)
         {
             try
             {
-                if (SavedProfileID == Guid.Empty)
+                DisableProfileByUniqueId(LastEnabledProfileID);
+                foreach(var x in SavedProfileID)
                 {
-                    DisableProfileByUniqueId(LastEnabledProfileID);
-                }
-                else
-                {
-                    EnableProfileByUniqueId(SavedProfileID);
+                    EnableProfileByUniqueId(x);
                 }
             }
-            catch (Exception e)
+            catch(Exception e)
             {
                 e.Log();
             }
-            SavedProfileID = Guid.Empty;
+            SavedProfileID = null;
         }
         WasSet = false;
     }
@@ -132,11 +139,11 @@ public class CustomizePlusManager
 
     public string TransformName(string originalName)
     {
-        if (Guid.TryParse(originalName, out Guid guid))
+        if(Guid.TryParse(originalName, out var guid))
         {
-            if (GetProfiles().TryGetFirst(x => x.ID == guid, out var entry))
+            if(GetProfiles().TryGetFirst(x => x.UniqueId == guid, out var entry))
             {
-                if (C.GlamourerFullPath)
+                if(C.GlamourerFullPath)
                 {
                     return entry.VirtualPath;
                 }

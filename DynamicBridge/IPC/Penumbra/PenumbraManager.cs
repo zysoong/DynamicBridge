@@ -13,14 +13,15 @@ using System.Threading.Tasks;
 namespace DynamicBridge.IPC.Penumbra;
 public class PenumbraManager
 {
-    Guid? OldAssignment = null;
+    private bool IsAssignmentSet = false;
+    private Guid? OldAssignment = null;
 
     public PenumbraManager()
     {
         EzIPC.Init(this, "Penumbra");
     }
 
-    GetCollections GetCollections = new(Svc.PluginInterface);
+    private GetCollections GetCollections = new(Svc.PluginInterface);
     public IEnumerable<string> GetCollectionNames()
     {
         try
@@ -30,7 +31,7 @@ public class PenumbraManager
         catch(Exception e)
         {
             e.Log();
-            return []; 
+            return [];
         }
     }
 
@@ -38,7 +39,7 @@ public class PenumbraManager
     {
         try
         {
-            return new GetCollectionsByIdentifier(Svc.PluginInterface).Invoke(collectionName).First().Id;
+            return new GetCollectionsByIdentifier(Svc.PluginInterface).Invoke(collectionName).FirstOrDefault().Id;
         }
         catch(Exception e)
         {
@@ -52,7 +53,7 @@ public class PenumbraManager
         try
         {
             var result = new SetCollectionForObject(Svc.PluginInterface).Invoke(0, GetGuidForCollection(newAssignment), true, true);
-            if (!result.Item1.EqualsAny(PenumbraApiEc.Success, PenumbraApiEc.NothingChanged))
+            if(!result.Item1.EqualsAny(PenumbraApiEc.Success, PenumbraApiEc.NothingChanged))
             {
                 var e = $"Error setting Penumbra assignment: {result.Item1}";
                 PluginLog.Error(e);
@@ -60,7 +61,11 @@ public class PenumbraManager
             }
             else
             {
-                OldAssignment ??= result.OldCollection?.Id;
+                if(!IsAssignmentSet)
+                {
+                    IsAssignmentSet = true;
+                    OldAssignment ??= result.OldCollection?.Id;
+                }
                 if(result.Item1 == PenumbraApiEc.Success) P.TaskManager.Enqueue(RedrawLocalPlayer);
             }
         }
@@ -72,12 +77,13 @@ public class PenumbraManager
 
     public void UnsetAssignmentIfNeeded()
     {
-        if (OldAssignment == null) return;
+        if(!IsAssignmentSet) return;
         try
         {
             var result = new SetCollectionForObject(Svc.PluginInterface).Invoke(0, OldAssignment, true, true);
             OldAssignment = null;
-            if (result.Item1 == PenumbraApiEc.Success) P.TaskManager.Enqueue(RedrawLocalPlayer);
+            IsAssignmentSet = false;
+            if(result.Item1 == PenumbraApiEc.Success) P.TaskManager.Enqueue(RedrawLocalPlayer);
         }
         catch(Exception e)
         {

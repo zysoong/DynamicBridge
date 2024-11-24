@@ -34,9 +34,10 @@ public unsafe class GlamourerManager
     {
         try
         {
-            ApplyDesign.Invoke(guid, 0);
+            //ApplyDesign.Invoke(guid, 0);
+            Commands.ApplyByGuid(guid);
         }
-        catch (Exception ex)
+        catch(Exception ex)
         {
             ex.Log();
         }
@@ -50,7 +51,7 @@ public unsafe class GlamourerManager
         {
             return GetDesignList.Invoke().Select(x => (x.Value, x.Key)).ToArray();
         }
-        catch (Exception ex)
+        catch(Exception ex)
         {
             InternalLog.Error(ex.ToString());
         }
@@ -64,7 +65,7 @@ public unsafe class GlamourerManager
         {
             return GetStateBase64.Invoke(0).Item2;
         }
-        catch (Exception e)
+        catch(Exception e)
         {
             e.Log();
             return null;
@@ -78,7 +79,7 @@ public unsafe class GlamourerManager
         {
             ApplyState.Invoke(customization, 0);
         }
-        catch (Exception e)
+        catch(Exception e)
         {
             e.Log();
         }
@@ -88,10 +89,10 @@ public unsafe class GlamourerManager
     {
         try
         {
-            ApplyByGuid(design.Identifier);
-            //Commands.ApplyByGuid(design.Identifier);
+            //ApplyByGuid(design.Identifier);
+            Commands.ApplyByGuid(design.Identifier);
         }
-        catch (Exception e)
+        catch(Exception e)
         {
             Notify.Error(e.Message);
             e.Log();
@@ -103,10 +104,10 @@ public unsafe class GlamourerManager
     {
         try
         {
-            //Commands.Revert();
-            RevertState.Invoke(0);
+            Commands.Revert();
+            //RevertState.Invoke(0);
         }
-        catch (Exception e)
+        catch(Exception e)
         {
             Notify.Error(e.Message);
             e.Log();
@@ -118,7 +119,7 @@ public unsafe class GlamourerManager
     public GlamourerDesignInfo[] GetDesigns()
     {
         var fc = CSFramework.Instance()->FrameCounter;
-        if (fc != ValidCacheFrame)
+        if(fc != ValidCacheFrame)
         {
             ValidCacheFrame = fc;
             CachedDesignInfo = GetDesignListIPC();
@@ -129,15 +130,15 @@ public unsafe class GlamourerManager
     private Dictionary<string, string> TransformNameCache = [];
     public string TransformName(string originalName)
     {
-        if (TransformNameCache.TryGetValue(originalName, out var ret))
+        if(TransformNameCache.TryGetValue(originalName, out var ret))
         {
             return ret;
         }
-        if (Guid.TryParse(originalName, out var guid))
+        if(Guid.TryParse(originalName, out var guid))
         {
-            if (GetDesigns().TryGetFirst(x => x.Identifier == guid, out var entry))
+            if(GetDesigns().TryGetFirst(x => x.Identifier == guid, out var entry))
             {
-                if (C.GlamourerFullPath)
+                if(C.GlamourerFullPath)
                 {
                     return CacheAndReturn(Reflector.GetPathForDesignByGuid(guid) ?? entry.Name);
                 }
@@ -158,16 +159,16 @@ public unsafe class GlamourerManager
         var ret = new List<string>();
         try
         {
-            foreach (var x in GetDesigns())
+            foreach(var x in GetDesigns())
             {
                 var path = Reflector.GetPathForDesignByGuid(x.Identifier);
-                if (path != null)
+                if(path != null)
                 {
                     ret.Add(path);
                 }
             }
         }
-        catch (Exception e)
+        catch(Exception e)
         {
             e.LogInternal();
         }
